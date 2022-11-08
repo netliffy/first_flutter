@@ -1,141 +1,195 @@
 import 'dart:async';
-import 'dart:convert';
-
-import 'package:flutter/foundation.dart';
+import 'package:crypto_template/screen/Bottom_Nav_Bar/bottom_nav_bar.dart';
+import 'package:crypto_template/screen/intro/on_Boarding.dart';
+import 'package:crypto_template/screen/setting/themes.dart';
 import 'package:flutter/material.dart';
-import 'package:first_flutter/coingecko/CoinGeckoClient.dart';
+import 'package:flutter/services.dart';
+import 'package:crypto_template/screen/setting/setting.dart';
+import 'package:requests/requests.dart';
+import 'package:crypto_template/com/ugoc/flutter/network/ResponseModel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+/// Run first apps open
 void main() {
-  runApp(const MyApp());
+  runApp(myApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class myApp extends StatefulWidget {
+  final Widget child;
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
+  myApp({Key key, this.child}) : super(key: key);
+
+  _myAppState createState() => _myAppState();
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-  int coins = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+class _myAppState extends State<myApp> {
+  /// Create _themeBloc for double theme (Dark and White theme)
+  ThemeBloc _themeBloc;
 
   @override
   void initState() {
     // TODO: implement initState
-    final gecko = CoinGeckoClient();
-    gecko.getTopCoinsMarkets().then((value) {
-      //coins = value.length;
-    });
-    gecko.getTrendingCoins().then((value) {
-      coins = value.length;
-    });
     super.initState();
+    _themeBloc = ThemeBloc();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              '$coins',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    /// To set orientation always portrait
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+
+    /// StreamBuilder for themeBloc
+    return StreamBuilder<ThemeData>(
+      initialData: _themeBloc.initialTheme().data,
+      stream: _themeBloc.themeDataStream,
+      builder: (BuildContext context, AsyncSnapshot<ThemeData> snapshot) {
+        return MaterialApp(
+          title: 'MFP DEX',
+          theme: snapshot.data,
+          debugShowCheckedModeBanner: false,
+          home: SplashScreen(
+            themeBloc: _themeBloc,
+          ),
+
+          /// Move splash screen to onBoarding Layout
+          /// Routes
+          ///
+          routes: <String, WidgetBuilder>{
+            "onBoarding": (BuildContext context) =>
+                new onBoarding(themeBloc: _themeBloc),
+            "home": (BuildContext context) =>
+                new bottomNavBar(themeBloc: _themeBloc)
+          },
+        );
+      },
     );
   }
+}
 
-// A function that converts a response body into a List<Photo>.
-  /* List<Photo> parsePhotos(String responseBody) {
-    final parsed = jsonDecode(responseBody).cast<Map<String, dynamic>>();
+/// Component UI
+class SplashScreen extends StatefulWidget {
+  ThemeBloc themeBloc;
+  SplashScreen({this.themeBloc});
+  @override
+  _SplashScreenState createState() => _SplashScreenState(themeBloc);
+}
 
-    return parsed.map<Photo>((json) => Photo.fromJson(json)).toList();
-  }*/
+/// Component UI
+class _SplashScreenState extends State<SplashScreen> {
+  ThemeBloc themeBloc;
+  _SplashScreenState(this.themeBloc);
+  @override
+
+  /// Setting duration in splash screen
+  startTime() async {
+    return new Timer(Duration(milliseconds: 4500), NavigatorPage);
+  }
+
+  /// To navigate layout change
+  void NavigatorPage() {
+    Navigator.of(context).pushReplacementNamed("onBoarding");
+  }
+
+  /// Declare startTime to InitState
+  @override
+  void initState() {
+    super.initState();
+    String loc = 'onBoarding';
+    /*Requests.post('https://raescript.com/mfp_dex/home/api/login',
+            body: {}, bodyEncoding: RequestBodyEncoding.FormURLEncoded)
+        .then((value) {
+      print('loooove');
+      String response = value.content();
+      print(response);
+      if (response != null && response.length > 0) {
+        dynamic json = value.json();
+        ResponseModel resp = ResponseModel.fromJson(json);
+        if (resp != null && resp.success) loc = 'home';
+      }
+    });
+    */
+    checkIn().then((resp) {
+      if (resp != null && resp.success) loc = 'home';
+      Navigator.of(context).pushReplacementNamed(loc);
+    });
+//r.raiseForStatus();
+    //startTime();
+  }
+
+  Future<ResponseModel> checkIn() async {
+    ResponseModel resp = ResponseModel(msg: 'failed', success: false);
+    final prefs = await SharedPreferences.getInstance();
+
+    // set value
+    String email = await prefs.getString('email');
+    String password = await prefs.getString('password');
+
+    if (email != null && password != null) {
+      await Requests.post('https://raescript.com/mfp_dex/home/api/sign_in',
+              body: {'email': email, 'password': password, 'login': 'login'},
+              bodyEncoding: RequestBodyEncoding.FormURLEncoded)
+          .then((value) {
+        //print('login in');
+        //print(value.content());
+        dynamic json = value.json();
+        resp = ResponseModel.fromJson(json);
+      });
+    }
+    return resp;
+  }
+
+  /// Code Create UI Splash Screen
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Container(
+        /// Set Background image in splash screen layout (Click to open code)
+        decoration: BoxDecoration(
+            image: DecorationImage(
+                image: AssetImage('assets/image/splash_screen.png'),
+                fit: BoxFit.cover)),
+        child: Container(
+          /// Set gradient black in image splash screen (Click to open code)
+          decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [
+                Color.fromRGBO(0, 0, 0, 0.1),
+                Color.fromRGBO(0, 0, 0, 0.1)
+              ],
+                  begin: FractionalOffset.topCenter,
+                  end: FractionalOffset.bottomCenter)),
+          child: Center(
+            child: Container(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      Image.asset("assets/image/logo.png", height: 35.0),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 17.0, top: 7.0),
+                        child: Text(
+                          "MFP DEX",
+                          style: TextStyle(
+                              fontFamily: "Sans",
+                              color: Colors.white,
+                              fontSize: 32.0,
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 3.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
